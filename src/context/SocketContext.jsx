@@ -4,7 +4,7 @@ import { io } from "socket.io-client";
 const SocketContext = createContext(null);
 
 const BACKEND_URL =
-  import.meta.env.VITE_BACKEND_URL || "https://my-backend-1-f1dg.onrender.com";
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
 export function SocketProvider({ children, user }) {
     const [socket, setSocket] = useState(null);
