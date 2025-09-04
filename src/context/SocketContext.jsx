@@ -3,26 +3,24 @@ import { io } from "socket.io-client";
 
 const SocketContext = createContext(null);
 
-const BACKEND_URL =
-  import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+export function SocketProvider({ user, children }) {
+  const [socket, setSocket] = useState(null);
 
-export function SocketProvider({ children, user }) {
-    const [socket, setSocket] = useState(null);
+  useEffect(() => {
+    const s = io(import.meta.env.VITE_BACKEND_URL || "http://localhost:5000", {
+      query: { user },   // <-- this is critical
+      withCredentials: true,
+    });
+    setSocket(s);
 
-    useEffect(() => {
-        const newSocket = io(BACKEND_URL, {
-            query: { user }, // Pass username to server
-        });
-        setSocket(newSocket);
+    return () => {
+      s.disconnect();
+    };
+  }, [user]);
 
-        return () => newSocket.close();
-    }, [user]);
-
-    return (
-        <SocketContext.Provider value={socket}>
-            {children}
-        </SocketContext.Provider>
-    );
+  return <SocketContext.Provider value={socket}>{children}</SocketContext.Provider>;
 }
 
-export const useSocket = () => useContext(SocketContext);
+export function useSocket() {
+  return useContext(SocketContext);
+}

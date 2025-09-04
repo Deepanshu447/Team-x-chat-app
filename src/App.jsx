@@ -1,69 +1,68 @@
-import { useState, useEffect } from "react";
-import { SocketProvider } from "./context/SocketContext";
+import { useEffect, useState } from "react";
+import { SocketProvider, useSocket } from "./context/SocketContext";
+import Sidebar from "./components/Sidebar";
 import ChatWindow from "./components/ChatWindow";
-import Login from "./pages/Login";
+import Login from "./components/Login";
 
-export default function App() {
+// This component manages the chat layout after login
+function ChatLayout({ user }) {
+  const socket = useSocket();
+  const [onlineUsers, setOnlineUsers] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
 
-  const [user, setUser] = useState(null);
+  // Listen for online users from the server
   useEffect(() => {
-    const saved = localStorage.getItem("chat-username");
-    if (saved) setUser(saved);
-  }, []);
+    if (!socket) return;
 
-  if (!user) return <Login onLogin={setUser} />;
+    const handleOnlineUsers = (users) => {
+      setOnlineUsers(users);
+    };
+
+    socket.on("online-users", handleOnlineUsers);
+
+    return () => {
+      socket.off("online-users", handleOnlineUsers);
+    };
+  }, [socket]);
 
   return (
-
-     <div className="h-screen p-4 bg-gray-100">
-      <h1 className="text-2xl font-bold mb-4">Chat App</h1>
-
-      <div className="main-chat-screen bg-white border shadow">
-        <div className="px-4 py-2 rounded-t-2xl bg-blue-50 font-semibold border-b">
-          Logged in as {user}
-        </div>
-        <div className="p-2">
-          <SocketProvider user={user}>
-            <ChatWindow user={user} />
-          </SocketProvider>
-        </div>
+    <div className="flex h-screen">
+      <Sidebar
+        currentUser={user}
+        onlineUsers={onlineUsers}
+        onSelectUser={setSelectedUser}
+      />
+      <div className="flex-1">
+        {selectedUser ? (
+          <ChatWindow user={user} targetUser={selectedUser} />
+        ) : (
+          <div className="flex items-center justify-center h-full text-gray-500">
+            Select a user to start chatting
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
+// Main app
+export default function App() {
+  const [user, setUser] = useState(localStorage.getItem("chat-username") || "");
 
-// import { SocketProvider } from "./context/SocketContext";
-// import ChatWindow from "./components/ChatWindow";
+  // When user logs in, save to localStorage
+  const handleLogin = (username) => {
+    setUser(username);
+    localStorage.setItem("chat-username", username);
+  };
 
-// export default function App() {
+  // Show login page if no user is logged in
+  if (!user) {
+    return <Login onLogin={handleLogin} />;
+  }
 
-//   return (
-//      <div className="h-screen p-4 bg-gray-100">
-//       <h1 className="text-2xl font-bold mb-4">Local Two-User Chat (One Page)</h1>
-//       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//         <div className="rounded-2xl bg-white border shadow">
-//           <div className="px-4 py-2 rounded-t-2xl bg-blue-50 font-semibold border-b">
-//             Alice
-//           </div>
-//           <div className="p-2">
-//             <SocketProvider user="Alice">
-//               <ChatWindow user="Alice" />
-//             </SocketProvider>
-//           </div>
-//         </div>
-
-//         <div className="rounded-2xl bg-white border shadow">
-//           <div className="px-4 py-2 rounded-t-2xl bg-green-50 font-semibold border-b">
-//             Bob
-//           </div>
-//           <div className="p-2">
-//             <SocketProvider user="Bob">
-//               <ChatWindow user="Bob" />
-//             </SocketProvider>
-//           </div>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// }
+  return (
+    <SocketProvider user={user}>
+      <ChatLayout user={user} />
+    </SocketProvider>
+  );
+}
