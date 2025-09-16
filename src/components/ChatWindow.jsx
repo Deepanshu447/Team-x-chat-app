@@ -1,109 +1,117 @@
+// src/components/ChatWindow.jsx
 import { useEffect, useRef, useState } from "react";
-import { useSocket } from "../context/SocketContext";
 import axios from "axios";
+import { useSocket } from "../context/SocketProvider";
 
-const API_BASE = import.meta.env.VITE_BACKEND_URL
-
-function formatTime(ts) {
-  const d = new Date(ts);
-  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
+const API_BASE = import.meta.env.VITE_BACKEND_URL;
 
 export default function ChatWindow({ user, targetUser }) {
   const socket = useSocket();
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
-  const bottomRef = useRef(null);
+  const scrollRef = useRef(null);
 
-  // Fetch existing messages when targetUser changes
+  // scroll function when user type message
+  useEffect(() => {
+  scrollRef.current?.scrollIntoView({ behavior: "smooth" });
+}, [messages]);
+
+  // Fetch existing messages whenever the target user changes
   useEffect(() => {
     if (!targetUser) return;
 
-    axios
-      .get(`${API_BASE}/messages`, {
-        params: { user1: user, user2: targetUser },
-      })
-      .then((res) => setMessages(res.data))
-      .catch((err) => console.error("Failed to load messages:", err));
-  }, [user, targetUser]);
+    async function loadMessages() {
+      try {
+        const res = await axios.get(`${API_BASE}/messages`, {
+          params: { user1: user, user2: targetUser.uid },
+        });
+        setMessages(res.data);
+      } catch (err) {
+        console.error("Failed to load messages:", err);
+      }
+    }
 
-  // Listen for incoming private messages
+    loadMessages();
+  }, [targetUser, user]);
+
+  // Listen for incoming messages
   useEffect(() => {
     if (!socket) return;
 
-    const handlePrivateMessage = (msg) => {
+    const handleIncoming = (msg) => {
       if (
-        (msg.sender === user && msg.receiver === targetUser) ||
-        (msg.sender === targetUser && msg.receiver === user)
+        (msg.senderUid === user && msg.receiverUid === targetUser?.uid) ||
+        (msg.senderUid === targetUser?.uid && msg.receiverUid === user)
       ) {
         setMessages((prev) => [...prev, msg]);
       }
     };
 
-    socket.on("private-message", handlePrivateMessage);
-    return () => socket.off("private-message", handlePrivateMessage);
+    socket.on("receive-message", handleIncoming);
+    return () => socket.off("receive-message", handleIncoming);
   }, [socket, user, targetUser]);
 
-  // Scroll to bottom on new message
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const sendMessage = () => {
-    const trimmed = text.trim();
-    if (!trimmed || !socket) return;
-
-    const msg = {
-      sender: user,
-      receiver: targetUser,
-      text: trimmed,
-      ts: Date.now(),
+  async function sendMessage() {
+    if (!text.trim() || !targetUser) return;
+    const message = {
+      senderUid: user,
+      receiverUid: targetUser.uid,
+      text: text.trim(),
+      timestamp: Date.now(),
     };
 
-    socket.emit("private-message", msg);
-    // setMessages((prev) => [...prev, msg]); // show immediately
+    socket.emit("send-message", message);
+    // io.emit('message', msg);
+    // setMessages((prev) => [...prev, message]);
     setText("");
-  };
+  }
 
-  if (!targetUser) return null;
+  if (!targetUser) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-gray-500">
+        Select a user to start chatting.
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-3 bg-blue-600 text-white font-semibold">
-        Chat with {targetUser}
+      <div className="flex-none p-4 border-b border-gray-300 font-semibold">
+        Chat with {targetUser.username}
       </div>
-      <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50">
-        {messages.map((m, i) => {
-          const mine = m.sender === user;
-          return (
-            <div
-              key={i}
-              className={`max-w-[75%] rounded-2xl px-3 py-2 shadow-sm ${
-                mine
-                  ? "ml-auto bg-blue-600 text-white"
-                  : "mr-auto bg-white border"
+      <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        {messages.map((m, i) => (
+          <div
+            key={i}
+            className={`p-2 rounded max-w-md ${m.senderUid === user ? "bg-blue-100 ml-auto" : "bg-gray-200"
               }`}
-            >
-              <div className="text-xs opacity-80 mb-0.5">
-                {m.sender} • {formatTime(m.ts)}
-              </div>
-              <div>{m.text}</div>
-            </div>
-          );
-        })}
-        <div ref={bottomRef} />
+          >
+            <span className="ml-auto text-xs text-gray-500">{m.senderUid === user ? "Me" : targetUser.username}</span>
+            <p className="break-words">{m.text}</p>
+            {m.timestamp && (
+              <span className="text-right block text-xs text-gray-500">
+                {new Date(m.timestamp).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            )}
+          </div>
+        ))}
+        <div ref={scrollRef}></div>
       </div>
-      <div className="p-3 border-t bg-white flex gap-2">
+      
+      <div className="flex-none p-4 border-t border-gray-300 flex">
         <input
-          className="flex-1 border rounded-xl px-3 py-2 outline-none"
-          placeholder={`Message ${targetUser}`}
-          value={text}
+          className="flex-1 border border-gray-300 rounded p-2 mr-2"
+          value={text} 
           onChange={(e) => setText(e.target.value)}
+          placeholder="Type a message..."
           onKeyDown={(e) => e.key === "Enter" && sendMessage()}
         />
         <button
           onClick={sendMessage}
-          className="px-4 py-2 rounded-xl bg-blue-600 text-white font-medium"
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
         >
           Send
         </button>

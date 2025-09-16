@@ -1,59 +1,77 @@
+// src/components/Login.jsx
 import { useState } from "react";
+import { auth, provider } from "../firebase";
+import { signInWithPopup } from "firebase/auth";
 
-export default function Login({ onLogin }) {
+export default function Login() {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!name.trim()) return;
-
-    // 🔹 Simple hardcoded password check
-    const CHAT_PASSWORD = "DEEPS"; // <-- Change this
-
-    if (password !== CHAT_PASSWORD) {
-      setError("Invalid password");
-      return;
+  async function handleGoogleLogin() {
+    try {
+      await signInWithPopup(auth, provider);
+      // Firebase will trigger AuthProvider update → rest of app updates automatically
+    } catch (err) {
+      console.error("Google sign-in failed:", err);
     }
+  }
 
-    // Save username and login
-    localStorage.setItem("chat-username", name);
-    onLogin(name);
-  };
+  function handleSecretLogin(e) {
+    e.preventDefault();
+
+    // 🔥 Only password is fixed
+    const SECRET_PASS = "Deeps@2001";
+
+    if (password === SECRET_PASS) {
+      // ✅ User can choose any name
+      localStorage.setItem(
+        "manualUser",
+        JSON.stringify({ uid: `manual-${name}`, username: name })
+      );
+      window.location.reload(); // refresh so AuthProvider detects it
+    } else {
+      setError("Invalid secret password");
+    }
+  }
 
   return (
-    <div className="h-screen flex items-center justify-center bg-gray-100">
+    <div className="flex flex-col items-center justify-center h-screen">
+      <h1 className="text-2xl mb-4 font-bold">Welcome to Chat App</h1>
+      
       <form
-        onSubmit={handleSubmit}
-        className="bg-white p-6 rounded-2xl shadow w-80"
+        onSubmit={handleSecretLogin}
+        className="w-full max-w-sm space-y-3 border p-4 rounded shadow"
       >
-        <h2 className="text-xl font-bold mb-4">Enter Chat</h2>
-
         <input
           type="text"
+          placeholder="Enter Your Name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full border rounded px-3 py-2 mb-4 outline-none"
-          placeholder="Your name"
+          className="w-full border rounded p-2"
+          required
         />
-
         <input
           type="password"
+          placeholder="Enter Secret Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full border rounded px-3 py-2 mb-4 outline-none"
-          placeholder="Password"
+          className="w-full border rounded p-2"
+          required
         />
-
-        {error && <div className="text-red-500 mb-2">{error}</div>}
-
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white py-2 rounded-xl font-semibold"
+          className="w-full px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
         >
-          Join Chat
+          Login with Secret
         </button>
+        {error && <p className="text-red-500 text-sm">{error}</p>}
+        <button
+        onClick={handleGoogleLogin}
+        className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+      >
+        Sign in with Google
+      </button>
       </form>
     </div>
   );

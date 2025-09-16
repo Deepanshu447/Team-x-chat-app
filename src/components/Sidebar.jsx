@@ -1,46 +1,71 @@
+// src/components/Sidebar.jsx
 import { useEffect, useState } from "react";
-import axios from "axios";
+import { signOut } from "firebase/auth"; 
+import { auth } from "../firebase"; 
 
-const API_BASE = import.meta.env.VITE_BACKEND_URL
-
-export default function Sidebar({ currentUser, onlineUsers = [], onSelectUser }) {
-  const [allUsers, setAllUsers] = useState([]); // all registered users
+export default function Sidebar({ currentUser, onlineUsers, onSelectUser }) {
+  const [users, setUsers] = useState([]);
 
   useEffect(() => {
-    // Fetch all users once (adjust URL for production)
-    axios.get(`${API_BASE}/users`)
-      .then((res) => setAllUsers(res.data))
-      .catch((err) => console.error("Failed to fetch users:", err));
+    async function fetchUsers() {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/users`);
+        const data = await res.json();
+        setUsers(data);
+      } catch (err) {
+        console.error("Failed to fetch users:", err);
+      }
+    }
+    fetchUsers();
   }, []);
 
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      // AuthProvider will detect this and set firebaseUser = null
+      // So App will automatically redirect to Login.jsx
+    } catch (err) {
+      console.error("Logout failed:", err);
+    }
+  };
+
   return (
-    <div className="w-64 bg-white border-r h-full flex flex-col">
-      {/* Header */}
-      <div className="p-4 font-bold border-b">
-        Logged in as: {currentUser}
+    <div className="w-64 border-r border-gray-300 p-4 flex flex-col h-full">
+      {/* User info + Logout */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-semibold">{currentUser?.username}</h2>
+        
       </div>
 
-      {/* User List */}
-      <div className="p-2 flex-1 overflow-y-auto">
-        {allUsers
-          .filter((u) => u !== currentUser) // hide yourself from the list
+      {/* User list */}
+      <ul className="flex-1 overflow-y-auto">
+        {users
+          .filter((u) => u.uid !== currentUser.uid)
           .map((u) => {
-            const isOnline = onlineUsers.includes(u);
+            const isOnline = onlineUsers.includes(u.uid);
             return (
-              <div
-                key={u}
+              <li
+                key={u.uid}
+                className="flex items-center justify-between p-2 cursor-pointer hover:bg-gray-100 rounded"
                 onClick={() => onSelectUser(u)}
-                className="cursor-pointer flex items-center justify-between p-2 hover:bg-gray-100 rounded"
               >
-                <span>{u}</span>
+                <span>{u.username}</span>
                 <span
-                  className={`w-2 h-2 rounded-full ${
+                  className={`w-3 h-3 rounded-full ${
                     isOnline ? "bg-green-500" : "bg-gray-400"
                   }`}
-                />
-              </div>
+                ></span>
+              </li>
             );
           })}
+      </ul>
+      <div className="logoutbtn-div">
+        <button
+          onClick={handleLogout}
+          className="text-sm bg-red-500 text-white px-2 py-1 rounded hover:bg-red-600"
+        >
+          Logout
+        </button>
       </div>
     </div>
   );

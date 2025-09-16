@@ -46,5 +46,35 @@ ul {
 .chat-outerscroll{
   height: 70vh;
 }
+.circle-username{
+  height: 35px;
+    width: 35px;
+    background-color: #c9c9c9;
+    border-radius: 20px;
+}
+.username-outer {
+    display: flex;
+    padding: 10px;
+    -moz-column-gap: 10px;
+    column-gap: 10px;
+    align-items: center;
+    border-radius: 1px solid grey;
+    border: 1px solid #f1f1f1;
+    border-radius: 8px;
+    margin-top: 4px;
+   
+}
+.username-outer:hover{
+ background-color: #2563eb;
+}
+.chat-header{
+  background-color: #223151;
+}
+.logoutbtn-div{
+    position: fixed;
+    bottom: 0px;
+    margin: 20px auto;
+}
+
 
 
